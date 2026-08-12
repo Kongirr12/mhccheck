@@ -1,6 +1,6 @@
 // MHC Check - Frontend Script
 
-let SCRIPT_URL = localStorage.getItem('mhc_script_url') || '';
+let SCRIPT_URL = localStorage.getItem('mhc_script_url') || 'https://script.google.com/macros/s/AKfycbx-3wEd5sq8JZUWI34AY0RTAaneOf3FB_7s6LmyLoLlJBdRrJMIo1EJRbNKh5oXvIc-Kw/exec';
 let currentUser = null;
 let classRooms = {};
 let subjectsData = [];
