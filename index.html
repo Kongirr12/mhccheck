@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <title>MHC Check | ระบบบันทึกการมาเรียน</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- SweetAlert2 -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="flex flex-col h-screen overflow-hidden text-gray-800">
+
+  <!-- Setup Overlay (if scriptUrl is missing) -->
+  <div id="setup-screen" class="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-white/50 backdrop-blur-md hidden">
+    <div class="glass p-8 w-full max-w-lg text-center relative overflow-hidden">
+        <h2 class="text-2xl font-bold text-indigo-600 mb-2">ตั้งค่า API Endpoint</h2>
+        <p class="text-gray-500 text-sm mb-6">กรุณานำ URL ของ Web App จาก Google Apps Script มาใส่เพื่อเชื่อมต่อระบบ</p>
+        <div class="text-left w-full mb-6">
+            <label class="form-label">Google Apps Script URL</label>
+            <input type="text" id="api-url-input" class="glass-input" placeholder="https://script.google.com/macros/s/.../exec">
+        </div>
+        <button onclick="saveApiUrl()" class="w-full glass-btn-primary py-3 rounded-xl font-bold text-lg"><i class="fa-solid fa-link mr-2"></i> บันทึกการตั้งค่า</button>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="overlay-loader" class="fixed inset-0 z-[70] hidden flex flex-col items-center justify-center">
+    <div class="loader w-12 h-12 mb-4 border-[4px]"></div>
+    <div class="text-indigo-600 font-bold glass-panel px-4 py-2">กำลังประมวลผล...</div>
+  </div>
+
+  <!-- Login Screen -->
+  <div id="login-screen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="glass p-8 w-full max-w-md text-center relative overflow-hidden">
+        <div class="w-24 h-24 bg-white/80 rounded-full flex items-center justify-center mx-auto mb-6 shadow-md border-2 border-indigo-100 p-2">
+            <i class="fa-solid fa-graduation-cap text-5xl text-indigo-500"></i>
+        </div>
+        <h2 class="text-3xl font-bold text-indigo-700 mb-1">MHC check</h2>
+        <p class="text-gray-500 text-sm mb-6">เข้าสู่ระบบจัดการการมาเรียน</p>
+        
+        <div class="space-y-4 mb-8 text-left">
+            <div>
+                <label class="form-label"><i class="fa-solid fa-user mr-1 text-indigo-500"></i> Username</label>
+                <input type="text" id="login-username" placeholder="กรอกชื่อผู้ใช้" class="glass-input text-lg">
+            </div>
+            <div>
+                <label class="form-label"><i class="fa-solid fa-lock mr-1 text-indigo-500"></i> Password</label>
+                <input type="password" id="login-password" placeholder="••••••••" class="glass-input text-lg tracking-widest">
+            </div>
+        </div>
+        
+        <button onclick="doLogin()" class="w-full glass-btn-primary py-3 rounded-xl font-bold text-lg mb-4"><i class="fa-solid fa-right-to-bracket mr-2"></i> เข้าสู่ระบบ</button>
+        
+        <div class="text-xs text-gray-400 mt-4 border-t border-gray-200/50 pt-4">พัฒนาระบบโดย ครูก้องนที อุ่นเจริญ</div>
+    </div>
+  </div>
+
+  <!-- App Shell -->
+  <div id="app-shell" class="hidden flex h-full w-full">
+    
+    <!-- Sidebar -->
+    <aside id="sidebar" class="w-64 glass m-4 z-30 hidden md:flex flex-col absolute md:relative h-[calc(100vh-2rem)] transition-transform transform -translate-x-full md:translate-x-0">
+        <div class="p-6 text-center border-b border-white/30 flex flex-col items-center">
+            <div class="w-16 h-16 bg-white/80 rounded-full flex items-center justify-center mb-3 shadow-sm text-indigo-500 text-2xl">
+                <i class="fa-solid fa-graduation-cap"></i>
+            </div>
+            <div class="text-xl font-bold text-indigo-800">MHC check</div>
+            <p id="user-info" class="text-sm text-indigo-600 font-medium mt-1"></p>
+        </div>
+        
+        <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
+            <button onclick="showTab('home')" id="nav-home" class="sidebar-link w-full"><i class="fa-solid fa-house w-6 text-indigo-400"></i> หน้าแรก</button>
+            <button onclick="showTab('attendance')" id="nav-att" class="sidebar-link w-full"><i class="fa-solid fa-clipboard-user w-6 text-emerald-400"></i> เช็คชื่อนักเรียน</button>
+            <button onclick="showTab('dailystat')" id="nav-dailystat" class="sidebar-link w-full"><i class="fa-solid fa-calendar-check w-6 text-sky-400"></i> สถิติรายวัน</button>
+            <button onclick="showTab('management')" id="nav-mng" class="sidebar-link w-full hidden"><i class="fa-solid fa-cogs w-6 text-amber-400"></i> จัดการระบบ</button>
+        </nav>
+
+        <div class="p-4 border-t border-white/30">
+            <div class="text-xs text-center text-gray-400 mb-3">พัฒนาระบบโดย ครูก้องนที อุ่นเจริญ</div>
+            <button onclick="logout()" class="w-full flex items-center justify-center gap-2 text-rose-500 hover:bg-rose-50/50 p-2 rounded-xl transition-colors font-medium"><i class="fa-solid fa-power-off"></i> ออกจากระบบ</button>
+        </div>
+    </aside>
+
+    <!-- Mobile Overlay -->
+    <div id="mobile-overlay" class="fixed inset-0 bg-indigo-900/20 backdrop-blur-sm z-20 hidden md:hidden" onclick="toggleSidebar()"></div>
+
+    <!-- Main Content -->
+    <main class="flex-1 flex flex-col h-full overflow-hidden relative w-full">
+        
+        <!-- Mobile Header -->
+        <header class="glass m-4 mb-0 p-3 md:hidden flex justify-between items-center z-10 sticky top-4">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-graduation-cap text-indigo-600 text-xl"></i>
+                <span class="font-bold text-indigo-800">MHC check</span>
+            </div>
+            <button onclick="toggleSidebar()" class="text-gray-600 p-2 glass-btn rounded-lg"><i class="fa-solid fa-bars text-xl"></i></button>
+        </header>
+
+        <div class="flex-1 p-4 md:p-6 flex flex-col overflow-y-auto">
+            
+            <!-- HOME TAB -->
+            <section id="tab-home" class="animate-fade-in max-w-6xl mx-auto w-full">
+                <div class="mb-6">
+                    <h1 class="text-2xl font-bold text-indigo-800">ภาพรวมระบบ</h1>
+                    <p class="text-gray-500">ข้อมูลสรุปการจัดการเรียนการสอน</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                    <div class="glass p-6 relative overflow-hidden group">
+                        <h3 class="text-4xl font-bold text-sky-600 mb-1" id="stat-students">-</h3>
+                        <p class="text-gray-600 font-medium">นักเรียนทั้งหมด</p>
+                        <i class="fa-solid fa-users absolute -bottom-4 -right-4 text-8xl text-sky-100 group-hover:scale-110 transition-transform"></i>
+                    </div>
+                    <div class="glass p-6 relative overflow-hidden group">
+                        <h3 class="text-4xl font-bold text-emerald-600 mb-1" id="stat-records">-</h3>
+                        <p class="text-gray-600 font-medium">บันทึกการมาเรียน</p>
+                        <i class="fa-solid fa-check-circle absolute -bottom-4 -right-4 text-8xl text-emerald-100 group-hover:scale-110 transition-transform"></i>
+                    </div>
+                    <div class="glass p-6 relative overflow-hidden group">
+                        <h3 class="text-4xl font-bold text-rose-600 mb-1" id="stat-subjects">-</h3>
+                        <p class="text-gray-600 font-medium">รายวิชาในระบบ</p>
+                        <i class="fa-solid fa-book absolute -bottom-4 -right-4 text-8xl text-rose-100 group-hover:scale-110 transition-transform"></i>
+                    </div>
+                    <div class="glass p-6 relative overflow-hidden group">
+                        <h3 class="text-4xl font-bold text-amber-600 mb-1" id="stat-teachers">-</h3>
+                        <p class="text-gray-600 font-medium">ครูผู้สอน</p>
+                        <i class="fa-solid fa-chalkboard-user absolute -bottom-4 -right-4 text-8xl text-amber-100 group-hover:scale-110 transition-transform"></i>
+                    </div>
+                </div>
+
+                <div class="glass p-8">
+                    <div class="flex items-center gap-4 mb-6 pb-4 border-b border-white/50">
+                        <div class="w-12 h-12 bg-white/60 text-indigo-600 rounded-full flex items-center justify-center text-xl shadow-sm"><i class="fa-solid fa-bullhorn"></i></div>
+                        <div>
+                            <h3 class="text-lg font-bold text-gray-800">ยินดีต้อนรับสู่ MHC check</h3>
+                            <p class="text-gray-500 text-sm">ระบบบันทึกการมาเรียนสไตล์ Liquid Glass</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-gray-600">
+                        <div class="flex items-start gap-3 p-4 glass-panel"><i class="fa-solid fa-check text-emerald-500 mt-1"></i> รองรับการเช็คชื่อแบบโฮมรูม และรายวิชา</div>
+                        <div class="flex items-start gap-3 p-4 glass-panel"><i class="fa-solid fa-check text-emerald-500 mt-1"></i> ดูสถิติการมาเรียนรายวันได้ทันที</div>
+                        <div class="flex items-start gap-3 p-4 glass-panel"><i class="fa-solid fa-check text-emerald-500 mt-1"></i> ระบบแยกสิทธิ์ผู้ดูแลระบบ (Admin) และครูผู้สอน</div>
+                        <div class="flex items-start gap-3 p-4 glass-panel"><i class="fa-solid fa-check text-emerald-500 mt-1"></i> ดีไซน์ทันสมัย ใช้งานง่ายในทุกอุปกรณ์</div>
+                    </div>
+                    <div class="mt-8">
+                        <button onclick="showTab('attendance')" class="glass-btn-primary px-6 py-3 rounded-xl font-medium"><i class="fa-solid fa-rocket mr-2"></i> เริ่มบันทึกการมาเรียน</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ATTENDANCE TAB -->
+            <section id="tab-attendance" class="hidden max-w-6xl mx-auto w-full">
+                <!-- Mode Select -->
+                <div id="att-mode-select" class="glass p-8">
+                    <h2 class="text-2xl font-bold text-indigo-800 mb-6 flex items-center gap-2"><i class="fa-solid fa-clipboard-user text-indigo-500"></i> เลือกประเภทการบันทึก</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div onclick="selectAttMode('homeroom')" class="glass-panel p-6 cursor-pointer hover:bg-white/60 transition-all group flex items-center gap-6">
+                            <div class="w-16 h-16 rounded-full bg-sky-100 text-sky-500 flex items-center justify-center text-3xl group-hover:bg-sky-500 group-hover:text-white transition-colors"><i class="fa-solid fa-flag"></i></div>
+                            <div>
+                                <h3 class="text-xl font-bold text-gray-800 group-hover:text-sky-600 transition-colors">เข้าแถว / โฮมรูม</h3>
+                                <p class="text-gray-500 mt-1 text-sm">สำหรับครูประจำชั้น</p>
+                            </div>
+                        </div>
+                        <div onclick="selectAttMode('subject')" class="glass-panel p-6 cursor-pointer hover:bg-white/60 transition-all group flex items-center gap-6">
+                            <div class="w-16 h-16 rounded-full bg-rose-100 text-rose-500 flex items-center justify-center text-3xl group-hover:bg-rose-500 group-hover:text-white transition-colors"><i class="fa-solid fa-book-open"></i></div>
+                            <div>
+                                <h3 class="text-xl font-bold text-gray-800 group-hover:text-rose-600 transition-colors">รายวิชา</h3>
+                                <p class="text-gray-500 mt-1 text-sm">สำหรับครูผู้สอน</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form Area -->
+                <div id="att-form-area" class="hidden">
+                    <button class="mb-4 text-gray-500 hover:text-indigo-600 font-medium flex items-center gap-2 glass-btn px-4 py-2 rounded-xl" onclick="backToAttMode()"><i class="fa-solid fa-arrow-left"></i> ย้อนกลับ</button>
+                    
+                    <div class="glass p-6 mb-6">
+                        <h3 id="att-title" class="text-xl font-bold text-gray-800 mb-4 pb-3 border-b border-white/50"><i class="fa-solid fa-pen-to-square text-indigo-500 mr-2"></i> บันทึกข้อมูล</h3>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                            <div><label class="form-label">ระดับชั้น</label><select id="att-class" onchange="onAttClassChange()" class="glass-input"></select></div>
+                            <div><label class="form-label">ห้อง</label><select id="att-room" class="glass-input"></select></div>
+                            <div><label class="form-label">วันที่</label><input type="date" id="att-date" class="glass-input"></div>
+                            <div class="subject-only hidden"><label class="form-label">วิชา</label><select id="att-subject" class="glass-input"></select></div>
+                        </div>
+                        
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <button class="flex-1 glass-btn-primary px-6 py-3 rounded-xl font-medium" onclick="loadAttendanceList('new')">
+                                <i class="fa-solid fa-users mr-2"></i> ดึงรายชื่อ
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="attendance-area" class="hidden">
+                        <div class="glass overflow-hidden">
+                            <div class="bg-white/40 p-4 border-b border-white/50 flex justify-between items-center flex-wrap gap-2">
+                                <h3 id="current-class-room" class="font-bold text-indigo-800 text-lg">รายชื่อนักเรียน</h3>
+                                <div class="flex gap-2">
+                                    <button onclick="window.print()" class="text-sm bg-gray-600 hover:bg-gray-700 text-white shadow-md px-4 py-2 rounded-lg font-medium transition print:hidden"><i class="fa-solid fa-print mr-1"></i> พิมพ์</button>
+                                    <button onclick="setAllAttendanceUI('มาเรียน')" class="text-sm glass-btn-success px-4 py-2 rounded-lg font-medium">มาทั้งหมด</button>
+                                    <button onclick="setAllAttendanceUI('ขาด')" class="text-sm bg-rose-500 hover:bg-rose-600 text-white shadow-md px-4 py-2 rounded-lg font-medium transition">ขาดทั้งหมด</button>
+                                </div>
+                            </div>
+                            
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left whitespace-nowrap">
+                                    <thead class="bg-white/30 text-gray-600 text-sm">
+                                        <tr>
+                                            <th class="p-4 w-12 text-center font-semibold">ที่</th>
+                                            <th class="p-4 w-24 font-semibold">รหัส</th>
+                                            <th class="p-4 min-w-[150px] font-semibold">ชื่อ-สกุล</th>
+                                            <th class="p-4 text-center min-w-[250px] font-semibold">สถานะ</th>
+                                            <th class="p-4 w-48 font-semibold">หมายเหตุ</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="attendance-list" class="divide-y divide-white/20 text-sm"></tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="p-4 bg-white/40 border-t border-white/50 flex justify-end">
+                                <button class="w-full md:w-auto glass-btn-primary px-8 py-3 rounded-xl font-bold text-lg" onclick="submitAttendance()"><i class="fa-solid fa-save mr-2"></i> บันทึกข้อมูลเข้าสู่ระบบ</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- DAILY STATS TAB -->
+            <section id="tab-dailystat" class="hidden max-w-6xl mx-auto w-full">
+                <div class="glass p-8 mb-6">
+                    <h2 class="text-2xl font-bold text-indigo-800 mb-6 flex items-center gap-2"><i class="fa-solid fa-calendar-check text-sky-500"></i> สรุปสถิติรายวัน</h2>
+                    <div class="flex flex-col sm:flex-row gap-4 mb-6">
+                        <input type="date" id="stat-date" class="glass-input sm:max-w-xs">
+                        <button class="glass-btn-primary px-6 py-2 rounded-xl" onclick="loadDailyStats()"><i class="fa-solid fa-search"></i> ค้นหา</button>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+                        <div class="glass-panel p-4 text-center"><p class="text-gray-500 text-sm mb-1">รวม</p><h4 class="text-2xl font-bold text-indigo-600" id="ds-total">0</h4></div>
+                        <div class="glass-panel p-4 text-center"><p class="text-gray-500 text-sm mb-1">มาเรียน</p><h4 class="text-2xl font-bold text-emerald-500" id="ds-present">0</h4></div>
+                        <div class="glass-panel p-4 text-center"><p class="text-gray-500 text-sm mb-1">ขาด</p><h4 class="text-2xl font-bold text-rose-500" id="ds-absent">0</h4></div>
+                        <div class="glass-panel p-4 text-center"><p class="text-gray-500 text-sm mb-1">สาย</p><h4 class="text-2xl font-bold text-amber-500" id="ds-late">0</h4></div>
+                        <div class="glass-panel p-4 text-center"><p class="text-gray-500 text-sm mb-1">ลา</p><h4 class="text-2xl font-bold text-sky-500" id="ds-sick">0</h4></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- MANAGEMENT TAB (ADMIN) -->
+            <section id="tab-management" class="hidden max-w-6xl mx-auto w-full">
+                <div class="glass p-8">
+                    <h2 class="text-2xl font-bold text-indigo-800 mb-6 flex items-center gap-2"><i class="fa-solid fa-cogs text-amber-500"></i> การจัดการระบบ</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div class="glass-panel p-6">
+                            <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fa-solid fa-link text-indigo-500"></i> API Endpoint</h3>
+                            <input type="text" id="mng-api-url" class="glass-input mb-3" readonly>
+                            <button class="glass-btn px-4 py-2 rounded-lg text-sm" onclick="document.getElementById('setup-screen').classList.remove('hidden')">เปลี่ยน URL</button>
+                        </div>
+                        <div class="glass-panel p-6">
+                            <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fa-solid fa-database text-indigo-500"></i> ตั้งค่าฐานข้อมูล</h3>
+                            <p class="text-sm text-gray-600 mb-4">หากยังไม่มีชีตสำหรับเก็บข้อมูล (ครั้งแรก) กรุณากดปุ่มด้านล่าง</p>
+                            <button class="glass-btn-primary px-4 py-2 rounded-lg text-sm" onclick="setupDatabase()">สร้างตารางข้อมูลอัตโนมัติ</button>
+                        </div>
+                    </div>
+                    <div class="mt-8 text-center text-gray-500">
+                        *ฟังก์ชันจัดการผู้ใช้งานและนักเรียนแบบเต็มรูปแบบ สามารถทำได้โดยตรงผ่าน Google Sheets ของท่าน
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
