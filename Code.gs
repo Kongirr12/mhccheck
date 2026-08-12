@@ -42,6 +42,9 @@ function doPost(e) {
       case 'deleteStudentsByClassRoom':
         result = deleteStudentsByClassRoom(payload.className, payload.room);
         break;
+      case 'importStudents':
+        result = importStudents(payload.students);
+        break;
       case 'getClassRoomOptions':
         result = getClassRoomOptions();
         break;
@@ -333,6 +336,57 @@ function deleteStudentsByClassRoom(className, room) {
     }
   }
   return { success: true, message: "Deleted " + deletedCount + " students", count: deletedCount };
+}
+
+function importStudents(studentsArray) {
+  const sheet = getSheet('Students');
+  if (!studentsArray || studentsArray.length === 0) return { success: false, message: "No data provided" };
+  
+  let added = 0;
+  let updated = 0;
+  
+  const existingData = sheet.getDataRange().getValues();
+  const headers = existingData[0];
+  const idColIdx = headers.indexOf('StudentID');
+  
+  // Create a map of existing students for fast lookup
+  let existingMap = {};
+  for (let i = 1; i < existingData.length; i++) {
+    existingMap[existingData[i][idColIdx].toString()] = i + 1; // 1-based row index
+  }
+  
+  let newRows = [];
+  
+  studentsArray.forEach(payload => {
+    let studentId = payload.studentId || payload.StudentID;
+    if (!studentId) return;
+    studentId = studentId.toString();
+    
+    const rowData = [
+      studentId, 
+      payload.number || payload.Number || '', 
+      payload.prefix || payload.Prefix || '', 
+      payload.firstname || payload.Firstname || '', 
+      payload.lastname || payload.Lastname || '', 
+      payload.className || payload.Class || '', 
+      payload.room || payload.Room || ''
+    ];
+    
+    if (existingMap[studentId]) {
+      // Update existing row (slow if many, but reliable)
+      sheet.getRange(existingMap[studentId], 1, 1, rowData.length).setValues([rowData]);
+      updated++;
+    } else {
+      newRows.push(rowData);
+      added++;
+    }
+  });
+  
+  if (newRows.length > 0) {
+    sheet.getRange(sheet.getLastRow() + 1, 1, newRows.length, newRows[0].length).setValues(newRows);
+  }
+  
+  return { success: true, message: `เพิ่มใหม่ ${added} คน, อัปเดต ${updated} คน` };
 }
 
 function getClassRoomOptions() {

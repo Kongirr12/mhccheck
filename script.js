@@ -364,6 +364,132 @@ async function loadDailyStats() {
     }
 }
 
+// --- Management: Students ---
+async function loadManageStudents() {
+    const c = document.getElementById('mng-class').value;
+    const r = document.getElementById('mng-room').value;
+    
+    if (!c || !r) return;
+    
+    const res = await callApi('getStudents', { className: c, room: r });
+    if (res && res.success) {
+        const tbody = document.getElementById('mng-student-list');
+        tbody.innerHTML = '';
+        if (res.students.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">ไม่พบข้อมูลนักเรียน</td></tr>';
+            return;
+        }
+        
+        res.students.forEach(s => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="p-3 text-center">ม.${s.Class}/${s.Room}</td>
+                <td class="p-3 text-center">${s.Number}</td>
+                <td class="p-3">${s.StudentID}</td>
+                <td class="p-3">${s.Prefix}${s.Firstname} ${s.Lastname}</td>
+                <td class="p-3 text-center">
+                    <button class="text-rose-500 hover:text-rose-700 bg-rose-50 p-2 rounded-lg" onclick="deleteStudent('${s.StudentID}')"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+}
+
+function showAddStudentModal() {
+    const c = document.getElementById('mng-class').value;
+    const r = document.getElementById('mng-room').value;
+    
+    document.getElementById('as-id').value = '';
+    document.getElementById('as-prefix').value = '';
+    document.getElementById('as-first').value = '';
+    document.getElementById('as-last').value = '';
+    document.getElementById('as-class').value = c || '';
+    document.getElementById('as-room').value = r || '';
+    document.getElementById('as-num').value = '';
+    
+    document.getElementById('add-student-modal').classList.remove('hidden');
+}
+
+async function saveSingleStudent() {
+    const payload = {
+        studentId: document.getElementById('as-id').value.trim(),
+        prefix: document.getElementById('as-prefix').value.trim(),
+        firstname: document.getElementById('as-first').value.trim(),
+        lastname: document.getElementById('as-last').value.trim(),
+        className: document.getElementById('as-class').value.trim(),
+        room: document.getElementById('as-room').value.trim(),
+        number: document.getElementById('as-num').value.trim()
+    };
+    
+    if (!payload.studentId || !payload.firstname) return Swal.fire('Warning', 'กรุณากรอกรหัสและชื่อนักเรียน', 'warning');
+    
+    const res = await callApi('addStudent', payload);
+    if (res && res.success) {
+        document.getElementById('add-student-modal').classList.add('hidden');
+        Swal.fire('Success', res.message, 'success');
+        loadManageStudents();
+        loadDashboardStats();
+    }
+}
+
+async function deleteStudent(studentId) {
+    if (!confirm('ยืนยันการลบนักเรียนรหัส ' + studentId + '?')) return;
+    
+    const res = await callApi('deleteStudent', { studentId });
+    if (res && res.success) {
+        Swal.fire('Success', 'ลบข้อมูลเรียบร้อย', 'success');
+        loadManageStudents();
+        loadDashboardStats();
+    }
+}
+
+function handleCSVUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = async function(e) {
+        const text = e.target.result;
+        const rows = text.split('\n').filter(r => r.trim().length > 0);
+        if (rows.length < 2) return Swal.fire('Error', 'ไฟล์ CSV ไม่ถูกต้อง หรือไม่มีข้อมูล', 'error');
+        
+        // Assume format: StudentID, Number, Prefix, Firstname, Lastname, Class, Room
+        // The first row might be header
+        let students = [];
+        for (let i = 1; i < rows.length; i++) {
+            const cols = rows[i].split(',').map(c => c.trim().replace(/^"|"$/g, ''));
+            if (cols.length >= 7 && cols[0]) {
+                students.push({
+                    studentId: cols[0],
+                    number: cols[1],
+                    prefix: cols[2],
+                    firstname: cols[3],
+                    lastname: cols[4],
+                    className: cols[5],
+                    room: cols[6]
+                });
+            }
+        }
+        
+        if (students.length === 0) return Swal.fire('Error', 'ไม่พบข้อมูลในรูปแบบที่ถูกต้อง (ต้องมี 7 คอลัมน์: รหัส, เลขที่, คำนำหน้า, ชื่อ, สกุล, ชั้น, ห้อง)', 'error');
+        
+        document.getElementById('csv-file').value = ''; // Reset input
+        
+        if (!confirm(`ต้องการนำเข้าข้อมูลนักเรียนจำนวน ${students.length} คน ใช่หรือไม่?`)) return;
+        
+        const res = await callApi('importStudents', { students });
+        if (res && res.success) {
+            Swal.fire('Success', res.message, 'success');
+            loadManageStudents();
+            loadDashboardStats();
+        } else {
+            Swal.fire('Error', res?.message || 'Failed', 'error');
+        }
+    };
+    reader.readAsText(file);
+}
+
 // --- Setup System ---
 async function setupDatabase() {
     const res = await callApi('setup');

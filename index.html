@@ -255,8 +255,50 @@
 
             <!-- MANAGEMENT TAB (ADMIN) -->
             <section id="tab-management" class="hidden max-w-6xl mx-auto w-full">
+                <div class="glass p-8 mb-6">
+                    <h2 class="text-2xl font-bold text-indigo-800 mb-6 flex items-center gap-2"><i class="fa-solid fa-user-graduate text-emerald-500"></i> จัดการข้อมูลนักเรียน</h2>
+                    
+                    <div class="flex flex-col md:flex-row justify-between gap-4 mb-6">
+                        <div class="flex flex-wrap gap-2 items-center">
+                            <select id="mng-class" class="glass-input w-32" onchange="loadManageStudents()">
+                                <option value="">- เลือกชั้น -</option>
+                                <option value="1">ม.1</option>
+                                <option value="2">ม.2</option>
+                                <option value="3">ม.3</option>
+                                <option value="4">ม.4</option>
+                                <option value="5">ม.5</option>
+                                <option value="6">ม.6</option>
+                            </select>
+                            <input type="number" id="mng-room" class="glass-input w-24" placeholder="ห้อง" onchange="loadManageStudents()">
+                            <button class="glass-btn-primary px-4 py-2 rounded-xl" onclick="loadManageStudents()"><i class="fa-solid fa-search"></i> ค้นหา</button>
+                        </div>
+                        <div class="flex gap-2">
+                            <button class="glass-btn px-4 py-2 rounded-xl text-indigo-600" onclick="showAddStudentModal()"><i class="fa-solid fa-plus mr-1"></i> เพิ่มนักเรียน 1 คน</button>
+                            <button class="glass-btn-success px-4 py-2 rounded-xl" onclick="document.getElementById('csv-file').click()"><i class="fa-solid fa-file-csv mr-1"></i> นำเข้า CSV</button>
+                            <input type="file" id="csv-file" accept=".csv" class="hidden" onchange="handleCSVUpload(event)">
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto bg-white/40 rounded-xl border border-white/50">
+                        <table class="w-full text-left whitespace-nowrap">
+                            <thead class="bg-white/30 text-gray-600 text-sm">
+                                <tr>
+                                    <th class="p-3 w-16 text-center">ชั้น/ห้อง</th>
+                                    <th class="p-3 w-16 text-center">เลขที่</th>
+                                    <th class="p-3 w-24">รหัส</th>
+                                    <th class="p-3">ชื่อ-สกุล</th>
+                                    <th class="p-3 w-24 text-center">จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mng-student-list" class="divide-y divide-white/20 text-sm">
+                                <tr><td colspan="5" class="p-4 text-center text-gray-500">เลือกระดับชั้นและห้องเพื่อดูข้อมูล</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <div class="glass p-8">
-                    <h2 class="text-2xl font-bold text-indigo-800 mb-6 flex items-center gap-2"><i class="fa-solid fa-cogs text-amber-500"></i> การจัดการระบบ</h2>
+                    <h2 class="text-2xl font-bold text-indigo-800 mb-6 flex items-center gap-2"><i class="fa-solid fa-cogs text-amber-500"></i> การตั้งค่าระบบ</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div class="glass-panel p-6">
                             <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fa-solid fa-link text-indigo-500"></i> API Endpoint</h3>
@@ -269,14 +311,51 @@
                             <button class="glass-btn-primary px-4 py-2 rounded-lg text-sm" onclick="setupDatabase()">สร้างตารางข้อมูลอัตโนมัติ</button>
                         </div>
                     </div>
-                    <div class="mt-8 text-center text-gray-500">
-                        *ฟังก์ชันจัดการผู้ใช้งานและนักเรียนแบบเต็มรูปแบบ สามารถทำได้โดยตรงผ่าน Google Sheets ของท่าน
-                    </div>
                 </div>
             </section>
-
         </div>
     </main>
+  </div>
+
+  <!-- Add Student Modal -->
+  <div id="add-student-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-indigo-900/40 backdrop-blur-sm hidden">
+    <div class="glass p-6 w-full max-w-md relative overflow-hidden">
+        <h3 class="text-xl font-bold text-indigo-800 mb-4"><i class="fa-solid fa-user-plus mr-2"></i> เพิ่ม/แก้ไข นักเรียน</h3>
+        <div class="grid grid-cols-2 gap-3 mb-3">
+            <div class="col-span-2">
+                <label class="form-label">รหัสนักเรียน</label>
+                <input type="text" id="as-id" class="glass-input">
+            </div>
+            <div class="col-span-2">
+                <label class="form-label">คำนำหน้า (เช่น ด.ช. / นาย)</label>
+                <input type="text" id="as-prefix" class="glass-input">
+            </div>
+            <div class="col-span-1">
+                <label class="form-label">ชื่อ</label>
+                <input type="text" id="as-first" class="glass-input">
+            </div>
+            <div class="col-span-1">
+                <label class="form-label">นามสกุล</label>
+                <input type="text" id="as-last" class="glass-input">
+            </div>
+            <div class="col-span-1">
+                <label class="form-label">ชั้น (เช่น 1)</label>
+                <input type="text" id="as-class" class="glass-input">
+            </div>
+            <div class="col-span-1">
+                <label class="form-label">ห้อง (เช่น 1)</label>
+                <input type="text" id="as-room" class="glass-input">
+            </div>
+            <div class="col-span-2">
+                <label class="form-label">เลขที่</label>
+                <input type="number" id="as-num" class="glass-input">
+            </div>
+        </div>
+        <div class="flex gap-2 mt-4">
+            <button class="flex-1 glass-btn py-2 rounded-lg" onclick="document.getElementById('add-student-modal').classList.add('hidden')">ยกเลิก</button>
+            <button class="flex-1 glass-btn-primary py-2 rounded-lg" onclick="saveSingleStudent()">บันทึก</button>
+        </div>
+    </div>
   </div>
 
   <script src="script.js"></script>
