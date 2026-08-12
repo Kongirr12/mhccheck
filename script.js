@@ -238,13 +238,14 @@ async function loadAttendanceList() {
     const res = await callApi('getAttendanceList', payload);
     
     if (res && res.success) {
-        if (res.list.length === 0) {
-            Swal.fire('Info', 'ไม่พบรายชื่อนักเรียนในห้องนี้', 'info');
-            return;
-        }
-        
         let subText = currentAttMode === 'subject' ? `วิชา: ${subjectCode}` : 'โฮมรูม';
         document.getElementById('current-class-room').innerText = `ม.${className}/${room} | ${date} | ${subText}`;
+        
+        if (res.list.length === 0) {
+            document.getElementById('attendance-list').innerHTML = '<tr><td colspan="5" class="p-8 text-center text-gray-500 font-medium">ไม่พบรายชื่อนักเรียนในห้องนี้ (กรุณาตรวจสอบว่ามีข้อมูลในระบบ)</td></tr>';
+            document.getElementById('attendance-area').classList.remove('hidden');
+            return;
+        }
         
         renderAttendanceList(res.list);
         document.getElementById('attendance-area').classList.remove('hidden');
@@ -372,7 +373,10 @@ async function loadManageStudents() {
     const c = document.getElementById('mng-class').value;
     const r = document.getElementById('mng-room').value;
     
-    if (!c || !r) return;
+    if (!c || !r) {
+        Swal.fire('Info', 'กรุณาระบุระดับชั้นและห้องให้ครบถ้วนก่อนค้นหา', 'info');
+        return;
+    }
     
     const res = await callApi('getStudents', { className: c, room: r });
     if (res && res.success) {
