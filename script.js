@@ -115,6 +115,8 @@ function showTab(tabId) {
     
     if (tabId === 'dailystat') {
         loadDailyStats();
+    } else if (tabId === 'management') {
+        loadManageSubjects();
     }
 }
 
@@ -488,6 +490,68 @@ function handleCSVUpload(event) {
         }
     };
     reader.readAsText(file);
+}
+
+// --- Management: Subjects ---
+async function loadManageSubjects() {
+    const res = await callApi('getSubjects');
+    if (res && res.success) {
+        const tbody = document.getElementById('mng-subject-list');
+        tbody.innerHTML = '';
+        if (res.subjects.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500">ไม่พบข้อมูลรายวิชา</td></tr>';
+            return;
+        }
+        
+        res.subjects.forEach(s => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="p-3 font-medium">${s.SubjectCode}</td>
+                <td class="p-3">${s.SubjectName}</td>
+                <td class="p-3">${s.TeacherName}</td>
+                <td class="p-3 text-center">
+                    <button class="text-rose-500 hover:text-rose-700 bg-rose-50 p-2 rounded-lg" onclick="deleteManageSubject('${s.SubjectCode}')"><i class="fa-solid fa-trash"></i></button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+}
+
+function showAddSubjectModal() {
+    document.getElementById('asub-code').value = '';
+    document.getElementById('asub-name').value = '';
+    document.getElementById('asub-teacher').value = '';
+    document.getElementById('add-subject-modal').classList.remove('hidden');
+}
+
+async function saveSingleSubject() {
+    const payload = {
+        subjectCode: document.getElementById('asub-code').value.trim(),
+        subjectName: document.getElementById('asub-name').value.trim(),
+        teacherName: document.getElementById('asub-teacher').value.trim()
+    };
+    
+    if (!payload.subjectCode || !payload.subjectName) return Swal.fire('Warning', 'กรุณากรอกรหัสวิชาและชื่อวิชา', 'warning');
+    
+    const res = await callApi('addSubject', payload);
+    if (res && res.success) {
+        document.getElementById('add-subject-modal').classList.add('hidden');
+        Swal.fire('Success', res.message, 'success');
+        loadManageSubjects();
+        loadBaseData(); // Refresh dropdowns
+    }
+}
+
+async function deleteManageSubject(subjectCode) {
+    if (!confirm('ยืนยันการลบรายวิชารหัส ' + subjectCode + '?')) return;
+    
+    const res = await callApi('deleteSubject', { subjectCode });
+    if (res && res.success) {
+        Swal.fire('Success', 'ลบข้อมูลเรียบร้อย', 'success');
+        loadManageSubjects();
+        loadBaseData(); // Refresh dropdowns
+    }
 }
 
 // --- Setup System ---
