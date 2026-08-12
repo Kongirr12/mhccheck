@@ -319,6 +319,29 @@
                     </div>
                 </div>
 
+                <div class="glass p-8 mb-6">
+                    <h2 class="text-2xl font-bold text-indigo-800 mb-6 flex items-center gap-2"><i class="fa-solid fa-users text-emerald-500"></i> จัดการผู้ใช้งาน (คุณครู)</h2>
+                    <div class="flex justify-end gap-2 mb-6">
+                        <button class="glass-btn px-4 py-2 rounded-xl text-indigo-600" onclick="showAddUserModal()"><i class="fa-solid fa-user-plus mr-1"></i> เพิ่มผู้ใช้งาน</button>
+                    </div>
+                    <div class="overflow-x-auto bg-white/40 rounded-xl border border-white/50">
+                        <table class="w-full text-left whitespace-nowrap">
+                            <thead class="bg-white/30 text-gray-600 text-sm">
+                                <tr>
+                                    <th class="p-3">Username</th>
+                                    <th class="p-3">ชื่อ-สกุล</th>
+                                    <th class="p-3">ระดับสิทธิ์</th>
+                                    <th class="p-3">ชั้น/ห้อง ประจำ</th>
+                                    <th class="p-3 w-24 text-center">จัดการ</th>
+                                </tr>
+                            </thead>
+                            <tbody id="mng-user-list" class="divide-y divide-white/20 text-sm">
+                                <tr><td colspan="5" class="p-4 text-center text-gray-500">กำลังโหลดข้อมูล...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <div class="glass p-8">
                     <h2 class="text-2xl font-bold text-indigo-800 mb-6 flex items-center gap-2"><i class="fa-solid fa-cogs text-amber-500"></i> การตั้งค่าระบบ</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -401,6 +424,46 @@
         <div class="flex gap-2 mt-4">
             <button class="flex-1 glass-btn py-2 rounded-lg" onclick="document.getElementById('add-subject-modal').classList.add('hidden')">ยกเลิก</button>
             <button class="flex-1 glass-btn-primary py-2 rounded-lg" onclick="saveSingleSubject()">บันทึก</button>
+        </div>
+    </div>
+  </div>
+
+  <!-- Add User Modal -->
+  <div id="add-user-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-indigo-900/40 backdrop-blur-sm hidden">
+    <div class="glass p-6 w-full max-w-md relative overflow-hidden">
+        <h3 class="text-xl font-bold text-indigo-800 mb-4"><i class="fa-solid fa-user-shield mr-2"></i> เพิ่ม/แก้ไข ผู้ใช้งาน</h3>
+        <div class="grid grid-cols-2 gap-3 mb-3">
+            <div class="col-span-2">
+                <label class="form-label">Username (ใช้ Login)</label>
+                <input type="text" id="auser-user" class="glass-input">
+            </div>
+            <div class="col-span-2">
+                <label class="form-label">Password (พิมพ์ใหม่หากต้องการเปลี่ยน)</label>
+                <input type="password" id="auser-pass" class="glass-input" placeholder="********">
+            </div>
+            <div class="col-span-2">
+                <label class="form-label">ชื่อ-สกุล (แสดงในระบบ)</label>
+                <input type="text" id="auser-name" class="glass-input">
+            </div>
+            <div class="col-span-2">
+                <label class="form-label">ระดับสิทธิ์ (Role)</label>
+                <select id="auser-role" class="glass-input">
+                    <option value="teacher">คุณครูทั่วไป (Teacher)</option>
+                    <option value="admin">ผู้ดูแลระบบ (Admin)</option>
+                </select>
+            </div>
+            <div class="col-span-1">
+                <label class="form-label">ครูประจำชั้น (ม.)</label>
+                <input type="text" id="auser-class" class="glass-input" placeholder="เช่น 1">
+            </div>
+            <div class="col-span-1">
+                <label class="form-label">ครูประจำห้อง</label>
+                <input type="text" id="auser-room" class="glass-input" placeholder="เช่น 1">
+            </div>
+        </div>
+        <div class="flex gap-2 mt-4">
+            <button class="flex-1 glass-btn py-2 rounded-lg" onclick="document.getElementById('add-user-modal').classList.add('hidden')">ยกเลิก</button>
+            <button class="flex-1 glass-btn-primary py-2 rounded-lg" onclick="saveSingleUser()">บันทึก</button>
         </div>
     </div>
   </div>

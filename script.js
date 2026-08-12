@@ -117,6 +117,7 @@ function showTab(tabId) {
         loadDailyStats();
     } else if (tabId === 'management') {
         loadManageSubjects();
+        loadManageUsers();
     }
 }
 
@@ -551,6 +552,78 @@ async function deleteManageSubject(subjectCode) {
         Swal.fire('Success', 'ลบข้อมูลเรียบร้อย', 'success');
         loadManageSubjects();
         loadBaseData(); // Refresh dropdowns
+    }
+}
+
+// --- Management: Users ---
+async function loadManageUsers() {
+    const res = await callApi('getUsers');
+    if (res && res.success) {
+        const tbody = document.getElementById('mng-user-list');
+        tbody.innerHTML = '';
+        if (res.users.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-gray-500">ไม่พบข้อมูลผู้ใช้งาน</td></tr>';
+            return;
+        }
+        
+        res.users.forEach(u => {
+            const tr = document.createElement('tr');
+            let roomText = (u.Class && u.Room) ? `ม.${u.Class}/${u.Room}` : '-';
+            let roleText = u.Role === 'admin' ? '<span class="text-amber-600 font-bold">Admin</span>' : 'Teacher';
+            tr.innerHTML = `
+                <td class="p-3 font-medium">${u.Username}</td>
+                <td class="p-3">${u.Name}</td>
+                <td class="p-3">${roleText}</td>
+                <td class="p-3 text-center">${roomText}</td>
+                <td class="p-3 text-center">
+                    <button class="text-rose-500 hover:text-rose-700 bg-rose-50 p-2 rounded-lg" onclick="deleteManageUser('${u.Username}')" ${u.Username === 'admin' ? 'disabled class="text-gray-300 bg-gray-50 p-2 rounded-lg"' : ''}><i class="fa-solid fa-trash"></i></button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+}
+
+function showAddUserModal() {
+    document.getElementById('auser-user').value = '';
+    document.getElementById('auser-pass').value = '';
+    document.getElementById('auser-name').value = '';
+    document.getElementById('auser-role').value = 'teacher';
+    document.getElementById('auser-class').value = '';
+    document.getElementById('auser-room').value = '';
+    document.getElementById('add-user-modal').classList.remove('hidden');
+}
+
+async function saveSingleUser() {
+    const payload = {
+        username: document.getElementById('auser-user').value.trim(),
+        password: document.getElementById('auser-pass').value.trim(),
+        name: document.getElementById('auser-name').value.trim(),
+        role: document.getElementById('auser-role').value,
+        className: document.getElementById('auser-class').value.trim(),
+        room: document.getElementById('auser-room').value.trim()
+    };
+    
+    if (!payload.username || !payload.name) return Swal.fire('Warning', 'กรุณากรอก Username และชื่อ', 'warning');
+    
+    const res = await callApi('saveUser', payload);
+    if (res && res.success) {
+        document.getElementById('add-user-modal').classList.add('hidden');
+        Swal.fire('Success', res.message, 'success');
+        loadManageUsers();
+    } else {
+        Swal.fire('Error', res?.message || 'Failed', 'error');
+    }
+}
+
+async function deleteManageUser(username) {
+    if (username === 'admin') return Swal.fire('Warning', 'ไม่สามารถลบ Admin หลักได้', 'warning');
+    if (!confirm('ยืนยันการลบผู้ใช้งาน: ' + username + '?')) return;
+    
+    const res = await callApi('deleteUser', { username });
+    if (res && res.success) {
+        Swal.fire('Success', 'ลบข้อมูลเรียบร้อย', 'success');
+        loadManageUsers();
     }
 }
 
